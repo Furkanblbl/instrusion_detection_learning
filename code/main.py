@@ -5,11 +5,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import itertools
 import random
+import warnings
 
 # model imports
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.cluster import KMeans
 
 # processing imports
 from sklearn.preprocessing import LabelEncoder
@@ -19,6 +21,8 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import confusion_matrix
 
+# FutureWarning türündeki uyarıları devre dışı bırak
+warnings.simplefilter(action='ignore', category=FutureWarning)
 print('Welcome!')
 
 # fetch the training file
@@ -32,57 +36,18 @@ test_df = pd.read_csv(file_path_test)
 
 
 # add the column labels
-columns = (['duration'
-,'protocol_type'
-,'service'
-,'flag'
-,'src_bytes'
-,'dst_bytes'
-,'land'
-,'wrong_fragment'
-,'urgent'
-,'hot'
-,'num_failed_logins'
-,'logged_in'
-,'num_compromised'
-,'root_shell'
-,'su_attempted'
-,'num_root'
-,'num_file_creations'
-,'num_shells'
-,'num_access_files'
-,'num_outbound_cmds'
-,'is_host_login'
-,'is_guest_login'
-,'count'
-,'srv_count'
-,'serror_rate'
-,'srv_serror_rate'
-,'rerror_rate'
-,'srv_rerror_rate'
-,'same_srv_rate'
-,'diff_srv_rate'
-,'srv_diff_host_rate'
-,'dst_host_count'
-,'dst_host_srv_count'
-,'dst_host_same_srv_rate'
-,'dst_host_diff_srv_rate'
-,'dst_host_same_src_port_rate'
-,'dst_host_srv_diff_host_rate'
-,'dst_host_serror_rate'
-,'dst_host_srv_serror_rate'
-,'dst_host_rerror_rate'
-,'dst_host_srv_rerror_rate'
-,'attack'
-,'level'])
+columns = (['duration' ,'protocol_type' ,'service' ,'flag' ,'src_bytes' ,'dst_bytes' ,'land' ,'wrong_fragment' ,'urgent' ,'hot' ,'num_failed_logins' ,'logged_in'
+,'num_compromised' ,'root_shell' ,'su_attempted' ,'num_root' ,'num_file_creations' ,'num_shells' ,'num_access_files' ,'num_outbound_cmds' ,'is_host_login'
+,'is_guest_login' ,'count' ,'srv_count' ,'serror_rate' ,'srv_serror_rate' ,'rerror_rate' ,'srv_rerror_rate' ,'same_srv_rate' ,'diff_srv_rate'
+,'srv_diff_host_rate' ,'dst_host_count' ,'dst_host_srv_count' ,'dst_host_same_srv_rate' ,'dst_host_diff_srv_rate' ,'dst_host_same_src_port_rate'
+,'dst_host_srv_diff_host_rate' ,'dst_host_serror_rate' ,'dst_host_srv_serror_rate' ,'dst_host_rerror_rate' ,'dst_host_srv_rerror_rate'
+,'attack' ,'level'])
 
 df.columns = columns
 test_df.columns = columns
 
 # sanity check
-df.head()
-
-
+print("df.head()",df.head())
 
 # map normal to 0, all attacks to 1
 is_attack = df.attack.map(lambda a: 0 if a == 'normal' else 1)
@@ -93,16 +58,11 @@ df['attack_flag'] = is_attack
 test_df['attack_flag'] = test_attack
 
 # view the result
-df.head()
-
-
-np.shape(df)
+print("df.head(): ",df.head())
+print("np.shape(df): ",np.shape(df))
 
 set(df['protocol_type'])
-
 set(df['attack'])
-
-
 set(df['service'])
 
 
@@ -143,27 +103,9 @@ test_attack_map = test_df.attack.apply(map_attack)
 test_df['attack_map'] = test_attack_map
 
 # view the result
-df.head()
+print("df.head()",df.head())
 
 set(df['attack_map'])
-
-# # get a series with the count of each flag for attack and normal traffic
-# normal_flags = df.loc[df.attack_flag == 0].flag.value_counts()
-# attack_flags = df.loc[df.attack_flag == 1].flag.value_counts()
-
-# # create the charts
-# flag_axs = bake_pies([normal_flags, attack_flags], ['normal','attack'])        
-# plt.show()
-
-# # get a series with the count of each service for attack and normal traffic
-# normal_services = df.loc[df.attack_flag == 0].service.value_counts()
-# attack_services = df.loc[df.attack_flag == 1].service.value_counts()
-
-# # create the charts
-# service_axs = bake_pies([normal_services, attack_services], ['normal','attack'])        
-# plt.show()
-
-
 
 # get the intial set of encoded features and encode them
 features_to_encode = ['protocol_type', 'service', 'flag']
@@ -196,17 +138,12 @@ test_set = test_final.join(test_df[numeric_features])
 binary_y = df['attack_flag']
 multi_y = df['attack_map']
 
-test_binary_y = test_df['attack_flag']
-test_multi_y = test_df['attack_map']
-
 # build the training sets
 binary_train_X, binary_val_X, binary_train_y, binary_val_y = train_test_split(to_fit, binary_y, test_size=0.6)
 multi_train_X, multi_val_X, multi_train_y, multi_val_y = train_test_split(to_fit, multi_y, test_size = 0.6)
 
-binary_train_X.info()
-
-
-binary_train_X.sample(5)
+print(binary_train_X.info())
+print(binary_train_X.sample(5))
 
 # model for the binary classification
 binary_model = RandomForestClassifier()
@@ -215,35 +152,50 @@ binary_predictions = binary_model.predict(binary_val_X)
 
 # calculate and display our base accuracty
 base_rf_score = accuracy_score(binary_predictions,binary_val_y)
-base_rf_score
+print(base_rf_score)
 
 # define the list of models that we want to test
 models = [
-    RandomForestClassifier(),
-    LogisticRegression(max_iter=250),
-    KNeighborsClassifier(),
+    KMeans(n_clusters=2),
 ]
 
-# an empty list to capture the performance of each model
+# Performansı değerlendirmek için boş bir liste
 model_comps = []
 
-# walk through the models and populate our list
+# Modeller üzerinde geçiş yaparak performansı topluyoruz
 for model in models:
     model_name = model.__class__.__name__
-    accuracies = cross_val_score(model, binary_train_X, binary_train_y, scoring='accuracy')
-    for count, accuracy in enumerate(accuracies):
-        model_comps.append((model_name, count, accuracy))
+    if model_name == 'KMeans':  # KMeans için özel işlem
+        model.fit(binary_train_X)  # KMeans, etiketler ile eğitilmez, sadece veri ile çalışır
+        predictions = model.predict(binary_val_X)  # Küme tahminleri yapılır
+    else:
+        accuracies = cross_val_score(model, binary_train_X, binary_train_y, scoring='accuracy')
+        for count, accuracy in enumerate(accuracies):
+            model_comps.append((model_name, count, accuracy))
 
-        
+    # Eğer KMeans modeli ise, sonuçları listeye ekleyelim
+    if model_name == 'KMeans':
+        accuracy = accuracy_score(binary_val_y, predictions)  # KMeans ile doğruluğu hesaplamak
+        model_comps.append((model_name, 0, accuracy))
+
 # a box plot will do well to show us overall performance and the variation in the models.
 result_df = pd.DataFrame(model_comps, columns=['model_name', 'count', 'accuracy'])
 result_df.pivot(index='count',columns='model_name',values='accuracy').boxplot(rot=45)
 
+print('Model Comparison:')
+print(result_df.groupby('model_name').accuracy.mean())
 
 # model for the mulit classification
 multi_model = RandomForestClassifier()
 multi_model.fit(multi_train_X, multi_train_y)
 multi_predictions = multi_model.predict(multi_val_X)
 
+multi_model1 = KMeans(n_clusters=2)
+multi_model1.fit(multi_train_X, multi_train_y)
+multi_predictions1 = multi_model1.predict(multi_val_X)
+
 # get the score
-accuracy_score(multi_predictions,multi_val_y)
+print("aaaaa")
+print(accuracy_score(multi_predictions,multi_val_y))
+print("bbbbbb")
+print(accuracy_score(multi_predictions1,multi_val_y))
