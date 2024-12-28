@@ -25,10 +25,9 @@ from sklearn.metrics import confusion_matrix
 warnings.simplefilter(action='ignore', category=FutureWarning)
 print('Welcome!')
 
-# fetch the training file
-file_path_20_percent = '/home/furkan/instrusion_detector_learning/nsl-kdd/KDDTrain+_20Percent.txt'
-file_path_full_training_set = '/home/furkan/instrusion_detector_learning/nsl-kdd/KDDTrain+.txt'
-file_path_test = '/home/furkan/instrusion_detector_learning/nsl-kdd/KDDTest+.txt'
+# fetch the training fil../nsl-kdd/KDDTrain+_20Percent.txt'
+file_path_full_training_set = '../nsl-kdd/KDDTrain+.txt'
+file_path_test = '../nsl-kdd/KDDTest+.txt'
 
 #df = pd.read_csv(file_path_20_percent)
 df = pd.read_csv(file_path_full_training_set)
