@@ -26,9 +26,9 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 print('Welcome!')
 
 # fetch the training file
-file_path_20_percent = '/home/furkan/instrusion_detector_learning/nsl-kdd/KDDTrain+_20Percent.txt'
-file_path_full_training_set = '/home/furkan/instrusion_detector_learning/nsl-kdd/KDDTrain+.txt'
-file_path_test = '/home/furkan/instrusion_detector_learning/nsl-kdd/KDDTest+.txt'
+file_path_20_percent = '/instrusion_detector_learning/nsl-kdd/KDDTrain+_20Percent.txt'
+file_path_full_training_set = '/instrusion_detector_learning/nsl-kdd/KDDTrain+.txt'
+file_path_test = '/instrusion_detector_learning/nsl-kdd/KDDTest+.txt'
 
 #df = pd.read_csv(file_path_20_percent)
 df = pd.read_csv(file_path_full_training_set)
