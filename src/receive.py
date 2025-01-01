@@ -6,7 +6,7 @@ from scipy.stats import zscore
 
 
 # Önceden eğitilmiş modeli yükle
-kmeans_model = joblib.load("kmeans_model.pkl")
+kmeans_model = joblib.load("../kmeans-model/kmeans_model.pkl")
 
 # Eğitimde kullanılan sütunlar
 column_order = ["duration", "src_bytes", "dst_bytes"]
@@ -47,11 +47,19 @@ def detect_anomaly(processed_data, indeks):
 
     if np.min(distances) > 2900 and np.min(distances) <= 3000:
         print(
-            f"Anomali Tespit Edilid: {indeks}: {np.min(distances)}, {int(processed_data["duration"].iloc[0]), int(processed_data["src_bytes"].iloc[0]), int(processed_data["dst_bytes"].iloc[0])}"
+            f"Anomali Tespit Edildi: {indeks}: {np.min(distances)}, "
+            f"{int(processed_data['duration'].iloc[0])}, "
+            f"{int(processed_data['src_bytes'].iloc[0])}, "
+            f"{int(processed_data['dst_bytes'].iloc[0])}"
         )
 
     else:
-        print(f"Normal               : {np.min(distances)}, {int(processed_data["duration"].iloc[0]), int(processed_data["src_bytes"].iloc[0]), int(processed_data["dst_bytes"].iloc[0])}")
+        print(
+            f"Normal               : {np.min(distances)}, "
+            f"{int(processed_data['duration'].iloc[0])}, "
+            f"{int(processed_data['src_bytes'].iloc[0])}, "
+            f"{int(processed_data['dst_bytes'].iloc[0])}"
+        )
 
 
 def start_server():
