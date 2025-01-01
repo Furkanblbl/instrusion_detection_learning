@@ -2,24 +2,16 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-import itertools
-import random
 import warnings
+import joblib
 
 # model imports
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.linear_model import LogisticRegression
 from sklearn.cluster import KMeans
 
 # processing imports
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
-from sklearn.model_selection import cross_val_score
-from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import accuracy_score
-from sklearn.metrics import confusion_matrix
 
 # FutureWarning türündeki uyarıları devre dışı bırak
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -43,11 +35,12 @@ columns = (['duration' ,'protocol_type' ,'service' ,'flag' ,'src_bytes' ,'dst_by
 ,'dst_host_srv_diff_host_rate' ,'dst_host_serror_rate' ,'dst_host_srv_serror_rate' ,'dst_host_rerror_rate' ,'dst_host_srv_rerror_rate'
 ,'attack' ,'level'])
 
+# Set the dataset column names
 df.columns = columns
 test_df.columns = columns
 
 # sanity check
-print("df.head()",df.head())
+print("df.head()\n",df.head())
 
 # map normal to 0, all attacks to 1
 is_attack = df.attack.map(lambda a: 0 if a == 'normal' else 1)
@@ -58,8 +51,8 @@ df['attack_flag'] = is_attack
 test_df['attack_flag'] = test_attack
 
 # view the result
-print("df.head(): ",df.head())
-print("np.shape(df): ",np.shape(df))
+print("df.head():\n",df.head())
+print("np.shape(df):\n",np.shape(df))
 
 set(df['protocol_type'])
 set(df['attack'])
@@ -107,32 +100,11 @@ print("df.head()",df.head())
 
 set(df['attack_map'])
 
-# get the intial set of encoded features and encode them
-features_to_encode = ['protocol_type', 'service', 'flag']
-encoded = pd.get_dummies(df[features_to_encode])
-test_encoded_base = pd.get_dummies(test_df[features_to_encode])
-
-# not all of the features are in the test set, so we need to account for diffs
-test_index = np.arange(len(test_df.index))
-column_diffs = list(set(encoded.columns.values)-set(test_encoded_base.columns.values))
-
-diff_df = pd.DataFrame(0, index=test_index, columns=column_diffs)
-
-# we'll also need to reorder the columns to match, so let's get those
-column_order = encoded.columns.to_list()
-
-# append the new columns
-test_encoded_temp = test_encoded_base.join(diff_df)
-
-# reorder the columns
-test_final = test_encoded_temp[column_order].fillna(0)
-
 # get numeric features, we won't worry about encoding these at this point
 numeric_features = ['duration', 'src_bytes', 'dst_bytes']
 
 # model to fit/test
-to_fit = encoded.join(df[numeric_features])
-test_set = test_final.join(test_df[numeric_features])
+to_fit = df[numeric_features]
 
 # create our target classifications
 binary_y = df['attack_flag']
@@ -142,60 +114,12 @@ multi_y = df['attack_map']
 binary_train_X, binary_val_X, binary_train_y, binary_val_y = train_test_split(to_fit, binary_y, test_size=0.6)
 multi_train_X, multi_val_X, multi_train_y, multi_val_y = train_test_split(to_fit, multi_y, test_size = 0.6)
 
-print(binary_train_X.info())
-print(binary_train_X.sample(5))
-
-# model for the binary classification
-binary_model = RandomForestClassifier()
-binary_model.fit(binary_train_X, binary_train_y)
-binary_predictions = binary_model.predict(binary_val_X)
-
-# calculate and display our base accuracty
-base_rf_score = accuracy_score(binary_predictions,binary_val_y)
-print(base_rf_score)
-
-# define the list of models that we want to test
-models = [
-    KMeans(n_clusters=2),
-]
-
-# Performansı değerlendirmek için boş bir liste
-model_comps = []
-
-# Modeller üzerinde geçiş yaparak performansı topluyoruz
-for model in models:
-    model_name = model.__class__.__name__
-    if model_name == 'KMeans':  # KMeans için özel işlem
-        model.fit(binary_train_X)  # KMeans, etiketler ile eğitilmez, sadece veri ile çalışır
-        predictions = model.predict(binary_val_X)  # Küme tahminleri yapılır
-    else:
-        accuracies = cross_val_score(model, binary_train_X, binary_train_y, scoring='accuracy')
-        for count, accuracy in enumerate(accuracies):
-            model_comps.append((model_name, count, accuracy))
-
-    # Eğer KMeans modeli ise, sonuçları listeye ekleyelim
-    if model_name == 'KMeans':
-        accuracy = accuracy_score(binary_val_y, predictions)  # KMeans ile doğruluğu hesaplamak
-        model_comps.append((model_name, 0, accuracy))
-
-# a box plot will do well to show us overall performance and the variation in the models.
-result_df = pd.DataFrame(model_comps, columns=['model_name', 'count', 'accuracy'])
-result_df.pivot(index='count',columns='model_name',values='accuracy').boxplot(rot=45)
-
-print('Model Comparison:')
-print(result_df.groupby('model_name').accuracy.mean())
-
-# model for the mulit classification
-multi_model = RandomForestClassifier()
-multi_model.fit(multi_train_X, multi_train_y)
-multi_predictions = multi_model.predict(multi_val_X)
-
 multi_model1 = KMeans(n_clusters=2)
 multi_model1.fit(multi_train_X, multi_train_y)
 multi_predictions1 = multi_model1.predict(multi_val_X)
 
+joblib.dump(multi_model1, 'kmeans_model1.pkl')
+
 # get the score
-print("aaaaa")
-print(accuracy_score(multi_predictions,multi_val_y))
-print("bbbbbb")
+print("kmeans accurarcy")
 print(accuracy_score(multi_predictions1,multi_val_y))
