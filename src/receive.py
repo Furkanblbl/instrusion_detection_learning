@@ -1,98 +1,160 @@
+import os
+import sys
 import socket
-import pandas as pd
-import numpy as np
 import joblib
+import argparse
+import numpy as np
+import pandas as pd
 from scipy.stats import zscore
 
-
-# Önceden eğitilmiş modeli yükle
-kmeans_model = joblib.load("../kmeans-model/kmeans_model.pkl")
-
-# Eğitimde kullanılan sütunlar
-column_order = ["duration", "src_bytes", "dst_bytes"]
-
-numeric_features = ["duration", "src_bytes", "dst_bytes"]
-threshold = 10  # Anomali eşik değeri
+from utils import Utils
+from dataset import Dataset
 
 
-def preprocess_packet(packet):
-    """Gelen paketi işleyip modelin kabul edeceği formata çevirir."""
-    # Örnek veri formatı: {'duration': 5, 'src_bytes': 1000, 'dst_bytes': 500, 'protocol_type': 'tcp', 'service': 'http', 'flag': 'SF'}
-    encoded_data = pd.get_dummies(pd.DataFrame([packet]))
-    missing_columns = set(column_order) - set(encoded_data.columns)
-    for col in missing_columns:
-        encoded_data[col] = 0
+class ReceivePacket:
+    def __init__(
+        self,
+        kmean_model,
+        cols: list[str],
+        address: str = "127.0.0.1",
+        port: str = 8888,
+    ):
+        self.address = address
+        self.cols = cols
+        self.port = port
+        self.kmeans_model = kmean_model
 
-    # Sütun sırasını düzenle
-    encoded_data = encoded_data[column_order]
+    def preprocess_packet(self, packet: dict, cols: list[str]):
+        """
+        Conver packet format by the kmeans models
+        """
+        # Convert as pandas from dict
+        data = pd.get_dummies(pd.DataFrame([packet]))
+        # Get just related cols
+        numeric_data = data[cols]
+        # Return packet data
+        return numeric_data
 
-    # Sadece sayısal özellikleri al
-    numeric_data = pd.DataFrame([packet])[numeric_features]
-
-    # Çakışan sütunları kaldır
-    numeric_data = numeric_data.drop(
-        columns=[col for col in numeric_features if col in encoded_data.columns],
-        errors="ignore",
-    )
-
-    # İşlenmiş veriyi birleştir
-    processed_data = pd.concat([encoded_data, numeric_data], axis=1)
-    return processed_data
-
-def detect_anomaly(processed_data, indeks):
-    """KMeans modeli ile anomali tespiti yapar."""
-    prediction = kmeans_model.predict(processed_data)
-    cluster_centers = kmeans_model.cluster_centers_
-    distances = np.linalg.norm(cluster_centers - processed_data.values, axis=0)
-
-    if np.min(distances) > 2900 and np.min(distances) <= 3000:
-        print(
-            f"Anomali Tespit Edildi: {indeks}: {np.min(distances)}, "
-            f"{int(processed_data['duration'].iloc[0])}, "
-            f"{int(processed_data['src_bytes'].iloc[0])}, "
-            f"{int(processed_data['dst_bytes'].iloc[0])}"
-        )
-
-    else:
-        print(
-            f"Normal               : {np.min(distances)}, "
-            f"{int(processed_data['duration'].iloc[0])}, "
-            f"{int(processed_data['src_bytes'].iloc[0])}, "
-            f"{int(processed_data['dst_bytes'].iloc[0])}"
-        )
-
-
-def start_server():
-    """TCP sunucusunu başlatır ve gelen paketleri işler."""
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(("0.0.0.0", 8888))
-    server_socket.listen(5)
-
-    print("Sunucu dinliyor...")
-    indeks = 0
-
-    while True:
-        client_socket, addr = server_socket.accept()
-        # print(f"Bağlantı alındı: {addr}")
-
+    def detect_anomaly(self, processed_data, indeks):
+        """
+        Anomali detection with KMeans models
+        """
         try:
-            data = client_socket.recv(1024).decode("utf-8")
+            prediction = self.kmeans_model.predict(processed_data)
+            cluster_centers = self.kmeans_model.cluster_centers_
+            distances = np.linalg.norm(cluster_centers - processed_data.values, axis=0)
 
-            # Veriyi JSON formatında çözümle
-            packet = eval(data)  # NOT: eval güvenli değilse json.loads kullanın
+            if np.min(distances) > 2900 and np.min(distances) <= 3000:
+                print(
+                    f"Detect Anomali : {indeks}: {np.min(distances)}, "
+                    f"{int(processed_data['duration'].iloc[0])}, "
+                    f"{int(processed_data['src_bytes'].iloc[0])}, "
+                    f"{int(processed_data['dst_bytes'].iloc[0])}"
+                )
 
-            # Veriyi işleyin
-            processed_data = preprocess_packet(packet)
-
-            # Anomali tespiti yap
-            is_anomaly = detect_anomaly(processed_data, indeks)
-            indeks+=1
+            else:
+                print(
+                    f"Normal         : {np.min(distances)}, "
+                    f"{int(processed_data['duration'].iloc[0])}, "
+                    f"{int(processed_data['src_bytes'].iloc[0])}, "
+                    f"{int(processed_data['dst_bytes'].iloc[0])}"
+                )
+        # Catch errors
         except Exception as e:
-            print(f"Hata: {e}")
+            print(f"Error in detect_anomaly:\n{e}")
 
-        finally:
-            client_socket.close()
+    def start_server(self):
+        """
+        Start TCP server
+        """
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind((self.address, self.port))
+        server_socket.listen(5)
+
+        # For print visualization
+        indeks = 0
+
+        # Start loop for listen
+        while True:
+            client_socket, addr = server_socket.accept()
+            try:
+                data = client_socket.recv(1024).decode("utf-8")
+
+                # Convert json
+                # todo: be careful to eval, it's dangerous. So, we must change it
+                packet = eval(data)
+
+                # Procces data
+                processed_data = self.preprocess_packet(packet, self.cols)
+
+                # Detect anomali
+                is_anomaly = self.detect_anomaly(processed_data, indeks)
+                indeks += 1
+
+            except Exception as e:
+                print(f"Error in start_server: {e}")
+            finally:
+                client_socket.close()
 
 
 if __name__ == "__main__":
-    start_server()
+    try:
+        parser = argparse.ArgumentParser(
+            description="Argument parser for sending data."
+        )
+
+        parser.add_argument(
+            "--address",
+            type=str,
+            default="127.0.0.1",
+            help="Address to send data to (default: 127.0.0.1).",
+        )
+        parser.add_argument(
+            "--port",
+            type=int,
+            default=8888,
+            help="Port to send data to (default: 8888).",
+        )
+        parser.add_argument(
+            "--cols",
+            nargs="+",
+            type=str,
+            required=True,
+            help="List of columns to send (e.g., --cols col1 col2 col3).",
+        )
+        parser.add_argument(
+            "--model",
+            type=str,
+            required=True,
+            default="../kmeans-model/kmeans_model.pkl",
+            help="Kmean model path (e.g., --model ../kmeans-model/model.pkl).",
+        )
+        parser.add_argument(
+            "--debug",
+            type=str,
+            default="True",
+            help="Debug mode, only True or False. (default: True)",
+        )
+
+        # Take all args
+        args = parser.parse_args()
+
+    # If catch any error, exit the program
+    except Exception as e:
+        print(f"Error in parser:\n{e}")
+        sys.exit(0)
+
+    if args.model.endswith(".pkl") and os.path.exists(args.model):
+        # Load kmeans model from path
+        kmeans_model = joblib.load(args.model)
+        # Initialize client class
+        server = ReceivePacket(
+            kmean_model=kmeans_model,
+            cols=args.cols,
+            address=args.address,
+            port=args.port,
+        )
+
+        server.start_server()
+    else:
+        print(f"Check model file path. It is not exist or unsupported file format")
