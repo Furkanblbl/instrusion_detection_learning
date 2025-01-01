@@ -4,9 +4,6 @@ import pandas as pd
 
 
 class Dataset:
-    def __init__(self, path_dataset: str, path_col_names: str):
-        self.dataset = self.prepare_dataset(path_dataset, col_name_path=path_col_names)
-
     @classmethod
     def read_csv_file(self, path: str) -> pd.DataFrame:
         try:
