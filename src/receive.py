@@ -28,12 +28,22 @@ class ReceivePacket:
         """
         Conver packet format by the kmeans models
         """
-        # Convert as pandas from dict
-        data = pd.get_dummies(pd.DataFrame([packet]))
-        # Get just related cols
-        numeric_data = data[cols]
-        # Return packet data
-        return numeric_data
+        encoded_data = pd.get_dummies(pd.DataFrame([packet]))
+        missing_columns = set(self.cols) - set(encoded_data.columns)
+        for col in missing_columns:
+            encoded_data[col] = 0
+
+        encoded_data = encoded_data[self.cols]
+
+        numeric_data = pd.DataFrame([packet])[self.cols]
+
+        numeric_data = numeric_data.drop(
+            columns=[col for col in self.cols if col in encoded_data.columns],
+            errors="ignore",
+        )
+
+        processed_data = pd.concat([encoded_data, numeric_data], axis=1)
+        return processed_data
 
     def detect_anomaly(self, processed_data, indeks):
         """
