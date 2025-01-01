@@ -105,14 +105,14 @@ if __name__ == "__main__":
     dataset = read_dataset.prepare_dataset(
         path_dataset_test, col_name_path=path_column_names
     )
-    print(args.sending_cols)
+
     for i in range(args.send_count):
         packet = {}
         for col in args.sending_cols:
             packet[str(col)] = int(dataset[col].iloc[i])
 
         if args.debug == "True":
-            print(f"Sending Packet {i}: {packet}")
+            print(f"Sending Packet {i}: ({dataset["attack"].iloc[i]}) {packet}")
 
         # Send packet to sever
         client.send_packet(packet)

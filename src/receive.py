@@ -54,7 +54,7 @@ class ReceivePacket:
 
             else:
                 print(
-                    f"Normal         : {np.min(distances)}, "
+                    f"Normal         : {indeks}: {np.min(distances)}, "
                     f"{int(processed_data['duration'].iloc[0])}, "
                     f"{int(processed_data['src_bytes'].iloc[0])}, "
                     f"{int(processed_data['dst_bytes'].iloc[0])}"
