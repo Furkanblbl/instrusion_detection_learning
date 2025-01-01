@@ -11,7 +11,7 @@ class Dataset:
     def read_csv_file(self, path: str) -> pd.DataFrame:
         try:
             # If file doesn't csv file exit the program
-            if not path.endswith(".csv"):
+            if not path.endswith(".txt"):
                 print(f"Model file doesn't ends with 'csv': {path}")
                 sys.exit(0)
 
@@ -31,12 +31,13 @@ class Dataset:
 
             # Read column names from file
             with open(col_file_path, "r") as f:
-                curr_col_name = f.readline()
-                # Remove whitespaces
-                curr_col_name = curr_col_name.strip()
+                lines = f.readlines()
+                for curr_col_name in lines:
+                    # Remove whitespaces
+                    curr_col_name = curr_col_name.strip()
 
-                # Appen main list
-                col_names.append(str(f.readline()))
+                    # Appen main list
+                    col_names.append(str(curr_col_name))
 
             # Return, if read any col names. Otherwise return None
             return col_names if len(col_names) > 0 else None
