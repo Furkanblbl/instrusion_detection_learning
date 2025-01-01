@@ -1,0 +1,7 @@
+{
+    "paths": {
+        "dataset": "../nsl-kdd/KDDTrain+.txt",
+        "columns": "../nsl-kdd/column_names.txt",
+        "kmeans_model": "../kmeans-model/kmeans_model"
+    }
+}
